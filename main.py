@@ -1,52 +1,80 @@
-from fastapi import FastAPI
-from pydantic import BaseModel
+from fastapi import FastAPI, Depends, HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
+
+from dependencies import get_db
+from models import Item
+from schemas import ItemCreate, ItemResponse
 
 app = FastAPI()
 
 
-# Modelo de datos
-class Item(BaseModel):
-    nombre: str
-    descripcion: str | None = None
-    precio: float
-    en_stock: bool = True
-
-
 @app.get("/")
 def read_root():
-    return {"mensaje": "¡Bienvenido a FastAPI!"}
+    return {"mensaje": "¡Bienvenido a FastAPI con base de datos!"}
 
 
-# GET
-@app.get("/items/{item_id}")
-def get_item(item_id: int):
-    return {
-        "item_id": item_id,
-        "mensaje": "Mostrando información del item"
-    }
+@app.post("/items/", response_model=ItemResponse)
+async def create_item(item: ItemCreate, db: AsyncSession = Depends(get_db)):
+    db_item = Item(**item.dict())
+
+    db.add(db_item)
+
+    await db.commit()
+    await db.refresh(db_item)
+
+    return db_item
 
 
-# POST
-@app.post("/items/")
-def create_item(item: Item):
-    return {
-        "mensaje": "Item creado exitosamente",
-        "item": item
-    }
+@app.get("/items/{item_id}", response_model=ItemResponse)
+async def read_item(item_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Item).where(Item.id == item_id))
+    item = result.scalar_one_or_none()
+
+    if not item:
+        raise HTTPException(status_code=404, detail="Item no encontrado")
+
+    return item
 
 
-# PUT
-@app.put("/items/{item_id}")
-def update_item(item_id: int, item: Item):
-    return {
-        "mensaje": f"Item {item_id} actualizado",
-        "item": item
-    }
+@app.get("/items/", response_model=list[ItemResponse])
+async def list_items(db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Item))
+    return result.scalars().all()
 
 
-# DELETE
+@app.put("/items/{item_id}", response_model=ItemResponse)
+async def update_item(
+    item_id: int,
+    item_actualizado: ItemCreate,
+    db: AsyncSession = Depends(get_db)
+):
+    result = await db.execute(select(Item).where(Item.id == item_id))
+    item = result.scalar_one_or_none()
+
+    if not item:
+        raise HTTPException(status_code=404, detail="Item no encontrado")
+
+    item.nombre = item_actualizado.nombre
+    item.descripcion = item_actualizado.descripcion
+    item.precio = item_actualizado.precio
+    item.en_stock = item_actualizado.en_stock
+
+    await db.commit()
+    await db.refresh(item)
+
+    return item
+
+
 @app.delete("/items/{item_id}")
-def delete_item(item_id: int):
-    return {
-        "mensaje": f"Item {item_id} eliminado"
-    }
+async def delete_item(item_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Item).where(Item.id == item_id))
+    item = result.scalar_one_or_none()
+
+    if not item:
+        raise HTTPException(status_code=404, detail="Item no encontrado")
+
+    await db.delete(item)
+    await db.commit()
+
+    return {"mensaje": f"Item {item_id} eliminado"}
