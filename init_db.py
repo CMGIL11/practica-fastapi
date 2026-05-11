@@ -1,7 +1,7 @@
 import asyncio
 
 from database import engine, Base
-from models import Item
+from models import Item, Categoria, Tag
 
 
 async def init_db():
