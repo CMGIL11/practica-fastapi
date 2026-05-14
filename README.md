@@ -41,11 +41,4 @@ Algunos de los endpoints implementados son:
 - `GET /tags/`
 - `POST /tags/`
 - `POST /items/{item_id}/tags/{tag_id}`
-
-## Cómo ejecutar el proyecto
-
-Primero hay que crear y activar el entorno virtual:
-
-```bash
-python3 -m venv venv
-source venv/bin/activate
+- `POST /categorias/{cat_id}/items/`
