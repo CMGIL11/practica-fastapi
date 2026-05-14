@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class CategoriaCreate(BaseModel):
@@ -34,7 +34,7 @@ class ItemCreate(BaseModel):
 class ItemResponse(ItemCreate):
     id: int
     categoria: CategoriaResponse | None = None
-    tags: list[TagResponse] = []
+    tags: list[TagResponse] = Field(default_factory=list)
 
     class Config:
         from_attributes = True

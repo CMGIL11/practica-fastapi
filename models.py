@@ -8,8 +8,8 @@ from database import Base
 item_tag = Table(
     "item_tag",
     Base.metadata,
-    Column("item_id", Integer, ForeignKey("items.id")),
-    Column("tag_id", Integer, ForeignKey("tags.id"))
+    Column("item_id", Integer, ForeignKey("items.id"), primary_key=True),
+    Column("tag_id", Integer, ForeignKey("tags.id"), primary_key=True)
 )
 
 
@@ -17,7 +17,7 @@ class Categoria(Base):
     __tablename__ = "categorias"
 
     id = Column(Integer, primary_key=True, index=True)
-    nombre = Column(String, index=True)
+    nombre = Column(String, unique=True, index=True)
 
     items = relationship("Item", back_populates="categoria")
 
@@ -41,6 +41,6 @@ class Tag(Base):
     __tablename__ = "tags"
 
     id = Column(Integer, primary_key=True, index=True)
-    nombre = Column(String, index=True)
+    nombre = Column(String, unique=True, index=True)
 
     items = relationship("Item", secondary=item_tag, back_populates="tags")
