@@ -1,18 +1,11 @@
 from fastapi import FastAPI, Depends, HTTPException
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
 from dependencies import get_db
 from models import Item, Categoria, Tag
-from schemas import (
-    ItemCreate,
-    ItemResponse,
-    CategoriaCreate,
-    CategoriaResponse,
-    TagCreate,
-    TagResponse,
-)
+from schemas import ItemCreate, ItemResponse, CategoriaCreate, CategoriaResponse, TagCreate, TagResponse
 
 app = FastAPI()
 
@@ -57,6 +50,40 @@ async def create_item(item: ItemCreate, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Categoría no encontrada")
 
     db_item = Item(**item.dict())
+
+    db.add(db_item)
+    await db.commit()
+    await db.refresh(db_item)
+
+    result = await db.execute(
+        select(Item)
+        .options(selectinload(Item.categoria), selectinload(Item.tags))
+        .where(Item.id == db_item.id)
+    )
+
+    return result.scalar_one()
+
+@app.post("/categorias/{cat_id}/items/", response_model=ItemResponse)
+async def create_item_in_categoria(
+    cat_id: int,
+    item: ItemCreate,
+    db: AsyncSession = Depends(get_db)
+):
+    result = await db.execute(
+        select(Categoria).where(Categoria.id == cat_id)
+    )
+    categoria = result.scalar_one_or_none()
+
+    if not categoria:
+        raise HTTPException(status_code=404, detail="Categoría no encontrada")
+
+    db_item = Item(
+        nombre=item.nombre,
+        descripcion=item.descripcion,
+        precio=item.precio,
+        en_stock=item.en_stock,
+        categoria_id=cat_id
+    )
 
     db.add(db_item)
     await db.commit()
